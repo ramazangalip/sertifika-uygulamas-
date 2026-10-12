@@ -8,9 +8,15 @@ import {
   RotateCcw,
   Loader2,
   Clock,
-  Layout
+  Layout,
+  Type,
+  Sliders,
+  Sparkles,
+  ExternalLink,
+  Check
 } from 'lucide-react';
 import ExcelManager from './ExcelManager';
+import { loadGoogleFont, POPULAR_GOOGLE_FONTS } from '../utils/fontHelper';
 
 const numberToTurkishWords = (val) => {
   const n = parseInt(val, 10);
@@ -46,7 +52,36 @@ export default function ControlPanel({
   onShowToast,
   onResetStudent
 }) {
-  const [activeTab, setActiveTab] = useState('student'); // 'student' | 'excel' | 'school'
+  const [activeTab, setActiveTab] = useState('student'); // 'student' | 'excel' | 'school' | 'typography'
+  const [customFontInput, setCustomFontInput] = useState('');
+  const [isLoadingFont, setIsLoadingFont] = useState(false);
+
+  // Apply custom font from Google Fonts
+  const handleApplyCustomFont = async (fontName) => {
+    const targetFont = (fontName || customFontInput).trim();
+    if (!targetFont) {
+      if (onShowToast) onShowToast('Lütfen bir font adı yazın veya listeden seçin.', 'warning');
+      return;
+    }
+    setIsLoadingFont(true);
+    try {
+      const ok = await loadGoogleFont(targetFont);
+      if (ok) {
+        onChangeSettings({ ...settings, fontFamily: targetFont });
+        if (onShowToast) {
+          onShowToast(`"${targetFont}" fontu Google Fonts'tan başarıyla yüklendi ve uygulandı!`, 'success');
+        }
+      } else {
+        if (onShowToast) {
+          onShowToast(`"${targetFont}" fontu yüklenemedi. İsmin Google Fonts ile birebir eşleştiğinden emin olun.`, 'error');
+        }
+      }
+    } catch (err) {
+      if (onShowToast) onShowToast('Font yüklenirken bir hata oluştu.', 'error');
+    } finally {
+      setIsLoadingFont(false);
+    }
+  };
 
   // Training hour change handler with auto Turkish words generator
   const handleDersSaatiChange = (newHours) => {
@@ -116,13 +151,14 @@ export default function ControlPanel({
         <button
           type="button"
           onClick={() => setActiveTab('student')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-all ${
             activeTab === 'student'
               ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
+          title="Öğrenci Bilgileri"
         >
-          <User size={14} />
+          <User size={13} />
           <span>Öğrenci</span>
         </button>
 
@@ -130,14 +166,15 @@ export default function ControlPanel({
         <button
           type="button"
           onClick={() => setActiveTab('excel')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-all ${
             activeTab === 'excel'
               ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
+          title="Toplu Excel Yükleme"
         >
-          <FileSpreadsheet size={14} />
-          <span>Toplu Excel</span>
+          <FileSpreadsheet size={13} />
+          <span>Excel</span>
           {students.length > 1 && (
             <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
               {students.length}
@@ -149,14 +186,30 @@ export default function ControlPanel({
         <button
           type="button"
           onClick={() => setActiveTab('school')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-all ${
             activeTab === 'school'
               ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
+          title="Okul ve Belge Bilgileri"
         >
-          <School size={14} />
-          <span>Okul / Belge</span>
+          <School size={13} />
+          <span>Okul</span>
+        </button>
+
+        {/* Typography & Font Settings Tab */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('typography')}
+          className={`flex-1 flex items-center justify-center gap-1 py-2 px-1.5 rounded-xl text-[11px] font-semibold transition-all ${
+            activeTab === 'typography'
+              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          }`}
+          title="Yazı Tipi & Boyut Ayarları"
+        >
+          <Type size={13} />
+          <span>Yazı/Font</span>
         </button>
       </div>
 
@@ -510,6 +563,312 @@ export default function ControlPanel({
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB 4: YAZI TİPİ VE BOYUT AYARLARI */}
+        {activeTab === 'typography' && (
+          <div className="space-y-4">
+            {/* Font Family Selector Card */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Type size={14} className="text-purple-400" />
+                  <span>Yazı Fontu (Yazı Ailesi)</span>
+                </span>
+                <span className="text-[11px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                  {settings.fontFamily || 'Times New Roman'}
+                </span>
+              </div>
+
+              {/* Font Options Grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'Times New Roman', name: 'Times New Roman', desc: 'Resmi MEB Standardı', sample: 'Resmi Katılım' },
+                  { id: 'Arial', name: 'Arial', desc: 'Modern & Düz', sample: 'Modern Sade' },
+                  { id: 'Georgia', name: 'Georgia', desc: 'Zarif Klasik', sample: 'Zarif Klasik' },
+                  { id: 'Garamond', name: 'Garamond', desc: 'Geleneksel Serif', sample: 'Geleneksel Serif' },
+                  { id: 'Inter', name: 'Inter / Roboto', desc: 'Temiz Kurumsal', sample: 'Temiz Kurumsal' },
+                  { id: 'Courier New', name: 'Courier New', desc: 'Klasik Daktilo', sample: 'Klasik Daktilo' },
+                ].map((f) => {
+                  const isSelected = (settings.fontFamily || 'Times New Roman') === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => onChangeSettings({ ...settings, fontFamily: f.id })}
+                      className={`p-2.5 rounded-xl text-left border transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-purple-950/40 border-purple-500 text-white shadow-md shadow-purple-900/20 ring-1 ring-purple-500/40'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xs font-semibold truncate">{f.name}</span>
+                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse shrink-0 ml-1"></span>}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate mb-1">{f.desc}</div>
+                      <div
+                        className="text-[11px] text-slate-200 opacity-90 truncate"
+                        style={{ fontFamily: f.id === 'Times New Roman' ? '"Times New Roman", serif' : f.id === 'Arial' ? 'Arial, sans-serif' : f.id === 'Georgia' ? 'Georgia, serif' : f.id === 'Garamond' ? 'Garamond, serif' : f.id === 'Courier New' ? '"Courier New", monospace' : 'Inter, sans-serif' }}
+                      >
+                        {f.sample}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Google Fonts Dynamic Font Card */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-purple-900/40 space-y-3 shadow-lg shadow-purple-950/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-amber-400" />
+                  <span>Google Fonts'tan Özel Font Çek</span>
+                </span>
+                <a
+                  href="https://fonts.google.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                  title="Google Fonts kütüphanesini yeni sekmede aç"
+                >
+                  <span>fonts.google.com</span>
+                  <ExternalLink size={10} />
+                </a>
+              </div>
+
+              {/* Input & Apply Button */}
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Font adı (örn: Montserrat, Playfair Display)"
+                  value={customFontInput}
+                  onChange={(e) => setCustomFontInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleApplyCustomFont();
+                    }
+                  }}
+                  className="flex-1 bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  disabled={isLoadingFont}
+                  onClick={() => handleApplyCustomFont()}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:opacity-60 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm shrink-0"
+                >
+                  {isLoadingFont ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Yükleniyor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={13} />
+                      <span>Uygula</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Popular Suggestions Chips */}
+              <div>
+                <div className="text-[10px] text-slate-400 mb-1.5 flex items-center justify-between">
+                  <span>Popüler Sertifika Fontları:</span>
+                  <span className="text-[9px] text-slate-500">Tıklayıp hemen uygulayın</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_GOOGLE_FONTS.map((gf) => {
+                    const isCurrent = (settings.fontFamily || '').toLowerCase() === gf.name.toLowerCase();
+                    return (
+                      <button
+                        key={gf.name}
+                        type="button"
+                        disabled={isLoadingFont}
+                        onClick={() => {
+                          setCustomFontInput(gf.name);
+                          handleApplyCustomFont(gf.name);
+                        }}
+                        className={`text-[10px] px-2 py-1 rounded-md border transition-all flex items-center gap-1 ${
+                          isCurrent
+                            ? 'bg-purple-900/60 border-purple-500 text-purple-200 font-semibold ring-1 ring-purple-500/50'
+                            : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
+                        }`}
+                        title={`${gf.desc} (${gf.category})`}
+                      >
+                        <span>{gf.name}</span>
+                        {isCurrent && <Check size={10} className="text-purple-300" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* General Font Size Scale Card */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Sliders size={14} className="text-purple-400" />
+                  <span>Genel Yazı Boyutu Ölçeği</span>
+                </span>
+                <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
+                  %{settings.fontSizeScale || 100}
+                </span>
+              </div>
+
+              {/* Slider */}
+              <div className="space-y-1.5">
+                <input
+                  type="range"
+                  min="80"
+                  max="135"
+                  step="5"
+                  value={settings.fontSizeScale || 100}
+                  onChange={(e) => onChangeSettings({ ...settings, fontSizeScale: parseInt(e.target.value, 10) })}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                  <span>%80 (Küçük)</span>
+                  <span>%100 (Normal)</span>
+                  <span>%135 (Büyük)</span>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="grid grid-cols-4 gap-1.5 pt-1">
+                {[
+                  { label: 'Küçük', val: 90 },
+                  { label: 'Standart', val: 100 },
+                  { label: 'Büyük', val: 110 },
+                  { label: 'İri', val: 125 }
+                ].map((p) => (
+                  <button
+                    key={p.val}
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, fontSizeScale: p.val })}
+                    className={`py-1 px-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
+                      (settings.fontSizeScale || 100) === p.val
+                        ? 'bg-purple-600 text-white border-purple-500'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    %{p.val}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Granular Section Size Adjustments */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <span className="text-xs font-bold text-slate-200 block">
+                Özel Bölüm Yazı Boyutları
+              </span>
+
+              {/* Table Font Size */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                <div>
+                  <div className="text-xs font-medium text-slate-200">Tablo İçi Yazı Boyutu</div>
+                  <div className="text-[10px] text-slate-500">Öğrenci ve okul bilgilerinin boyutu</div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, tableFontSize: Math.max(9, (settings.tableFontSize || 12) - 1) })}
+                    className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition-colors"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono text-xs font-bold text-slate-100 w-8 text-center">
+                    {settings.tableFontSize || 12}px
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, tableFontSize: Math.min(16, (settings.tableFontSize || 12) + 1) })}
+                    className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Description Paragraph Font Size */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                <div>
+                  <div className="text-xs font-medium text-slate-200">Açıklama Metni Boyutu</div>
+                  <div className="text-[10px] text-slate-500">Tablonun altındaki eğitim metni</div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, descFontSize: Math.max(10, (settings.descFontSize || 13) - 1) })}
+                    className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition-colors"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono text-xs font-bold text-slate-100 w-8 text-center">
+                    {settings.descFontSize || 13}px
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, descFontSize: Math.min(18, (settings.descFontSize || 13) + 1) })}
+                    className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Title Font Size */}
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                <div>
+                  <div className="text-xs font-medium text-slate-200">Sertifika Başlık Boyutu</div>
+                  <div className="text-[10px] text-slate-500">"KATILIM BELGESİ" ana başlığı</div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, titleFontSize: Math.max(16, (settings.titleFontSize || 21) - 1) })}
+                    className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition-colors"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono text-xs font-bold text-slate-100 w-8 text-center">
+                    {settings.titleFontSize || 21}px
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onChangeSettings({ ...settings, titleFontSize: Math.min(28, (settings.titleFontSize || 21) + 1) })}
+                    className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Reset to Default Button */}
+            <button
+              type="button"
+              onClick={() => {
+                onChangeSettings({
+                  ...settings,
+                  fontFamily: 'Times New Roman',
+                  fontSizeScale: 100,
+                  tableFontSize: 12,
+                  descFontSize: 13,
+                  titleFontSize: 21
+                });
+                onShowToast('Yazı fontu ve boyutları varsayılana sıfırlandı.', 'info');
+              }}
+              className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw size={13} />
+              <span>Yazı Ayarlarını Varsayılana Sıfırla</span>
+            </button>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 import confetti from 'canvas-confetti';
 import mebLogoSrc from '../assets/meb_logo.png';
+import { getCanvasFontFamily, loadGoogleFont } from './fontHelper';
 
 let cachedMebLogo = null;
 const loadMebLogo = () => {
@@ -48,10 +49,40 @@ export const triggerConfetti = () => {
 };
 
 /**
+ * Split text into lines if it exceeds maxWidth in the given canvas context
+ */
+export const wrapTextToLines = (context, text, maxWidth) => {
+  if (!text) return [];
+  const words = text.trim().split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const testWidth = context.measureText(testLine).width;
+    if (testWidth > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  return lines;
+};
+
+/**
  * Render A4 Landscape (Yatay) or Portrait (Dikey) Official MEB Certificate
  * Default: Landscape (A4 Yatay: 297mm x 210mm @ 300 DPI = 3508 x 2480 px)
  */
 export const renderCertificateToCanvas = async (student, settings = {}) => {
+  if (settings.fontFamily) {
+    await loadGoogleFont(settings.fontFamily);
+  }
+
   if (document.fonts) {
     await document.fonts.ready;
   }
@@ -75,10 +106,26 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
 
-  const fontFace = '"Times New Roman", Georgia, serif';
+  const fontFace = getCanvasFontFamily(settings.fontFamily);
+  const sizeMultiplier = (settings.fontSizeScale || 100) / 100;
+
+  const tableFontSizeBase = isLandscape
+    ? Math.round((settings.tableFontSize ? (settings.tableFontSize * 2.8) : 34) * sizeMultiplier)
+    : Math.round((settings.tableFontSize ? (settings.tableFontSize * 3.0) : 36) * sizeMultiplier);
+
+  const titleFontSize = isLandscape
+    ? Math.round((settings.titleFontSize ? (settings.titleFontSize * 3.5) : 74) * sizeMultiplier)
+    : Math.round((settings.titleFontSize ? (settings.titleFontSize * 3.7) : 84) * sizeMultiplier);
+
+  const descFontSize = isLandscape
+    ? Math.round((settings.descFontSize ? (settings.descFontSize * 3.1) : 41) * sizeMultiplier)
+    : Math.round((settings.descFontSize ? (settings.descFontSize * 2.85) : 34) * sizeMultiplier);
+
+  const sigNameSize = Math.round((isLandscape ? 42 : 44) * sizeMultiplier);
+  const sigTitleSize = Math.round((isLandscape ? 44 : 48) * sizeMultiplier);
 
   // Helper font drawer with automatic overflow protection
-  const drawFittedValue = (text, x, y, maxWidth, baseSize = 35, weight = 'normal') => {
+  const drawFittedValue = (text, x, y, maxWidth, baseSize = tableFontSizeBase, weight = 'normal') => {
     if (!text && text !== 0) return;
     const str = String(text).trim();
     let size = baseSize;
@@ -115,7 +162,7 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
     ctx.fillStyle = '#000000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 74px "Playfair Display", "Times New Roman", Georgia, serif';
+    ctx.font = `bold ${titleFontSize}px ${fontFace}`;
     ctx.fillText('KATILIM BELGESİ', width / 2, 440);
 
     // Table Coordinates (Sayfanın üst kısmında kompakt)
@@ -175,90 +222,97 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
     ctx.fillStyle = '#000000';
 
     // ROW 1
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('T.C. Kimlik No', tableX + 24, getY(0));
     ctx.fillText(':', tableX + 380, getY(0));
-    drawFittedValue(student.tcNo, tableX + 410, getY(0), 920, 34, 'normal');
+    drawFittedValue(student.tcNo, tableX + 410, getY(0), 920, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Okulun Bulunduğu İlçe, İl', col2XStandard + 24, getY(0));
     ctx.fillText(':', col2XStandard + 480, getY(0));
-    drawFittedValue(student.ilceIl || settings.ilceIl, col2XStandard + 510, getY(0), 1250, 34, 'normal');
+    drawFittedValue(student.ilceIl || settings.ilceIl, col2XStandard + 510, getY(0), 1250, tableFontSizeBase, 'normal');
 
     // ROW 2
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Adı Soyadı', tableX + 24, getY(1));
     ctx.fillText(':', tableX + 240, getY(1));
-    drawFittedValue(student.adiSoyadi, tableX + 270, getY(1), 850, 34, 'bold');
+    drawFittedValue(student.adiSoyadi, tableX + 270, getY(1), 850, tableFontSizeBase, 'bold');
 
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Okul Numarası', col2XRow2 + 24, getY(1));
     ctx.fillText(':', col2XRow2 + 290, getY(1));
-    drawFittedValue(student.okulNo, col2XRow2 + 320, getY(1), 660, 34, 'normal');
+    drawFittedValue(student.okulNo, col2XRow2 + 320, getY(1), 660, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Numarası', col3XRow2 + 24, getY(1));
     ctx.fillText(':', col3XRow2 + 300, getY(1));
-    drawFittedValue(student.belgeNo || settings.belgeNo, col3XRow2 + 330, getY(1), 660, 34, 'normal');
+    drawFittedValue(student.belgeNo || settings.belgeNo, col3XRow2 + 330, getY(1), 660, tableFontSizeBase, 'normal');
 
     // ROW 3
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Baba Adı', tableX + 24, getY(2));
     ctx.fillText(':', tableX + 380, getY(2));
-    drawFittedValue(student.babaAdi, tableX + 410, getY(2), 920, 34, 'normal');
+    drawFittedValue(student.babaAdi, tableX + 410, getY(2), 920, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Tarihi', col2XStandard + 24, getY(2));
     ctx.fillText(':', col2XStandard + 250, getY(2));
-    drawFittedValue(student.belgeTarihi || settings.belgeTarihi, col2XStandard + 280, getY(2), 1480, 34, 'normal');
+    drawFittedValue(student.belgeTarihi || settings.belgeTarihi, col2XStandard + 280, getY(2), 1480, tableFontSizeBase, 'normal');
 
     // ROW 4
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Ana Adı', tableX + 24, getY(3));
     ctx.fillText(':', tableX + 380, getY(3));
-    drawFittedValue(student.anaAdi, tableX + 410, getY(3), 920, 34, 'normal');
+    drawFittedValue(student.anaAdi, tableX + 410, getY(3), 920, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Güvenlik No', col2XStandard + 24, getY(3));
     ctx.fillText(':', col2XStandard + 350, getY(3));
-    drawFittedValue(student.belgeGuvenlikNo || settings.belgeGuvenlikNo, col2XStandard + 380, getY(3), 1380, 34, 'normal');
+    drawFittedValue(student.belgeGuvenlikNo || settings.belgeGuvenlikNo, col2XStandard + 380, getY(3), 1380, tableFontSizeBase, 'normal');
 
     // ROW 5
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Doğum Yeri ve Tarihi', tableX + 24, getY(4));
     ctx.fillText(':', tableX + 380, getY(4));
-    drawFittedValue(student.dogumYeriTarihi, tableX + 410, getY(4), 920, 34, 'normal');
+    drawFittedValue(student.dogumYeriTarihi, tableX + 410, getY(4), 920, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Alanı/Dalı', col2XStandard + 24, getY(4));
     ctx.fillText(':', col2XStandard + 220, getY(4));
-    drawFittedValue(student.alaniDali, col2XStandard + 250, getY(4), 1510, 34, 'normal');
+    drawFittedValue(student.alaniDali, col2XStandard + 250, getY(4), 1510, tableFontSizeBase, 'normal');
 
     // ROW 6
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belgeyi Veren Okul', tableX + 24, getY(5));
     ctx.fillText(':', tableX + 380, getY(5));
-    drawFittedValue(student.verenOkul || settings.verenOkul, tableX + 410, getY(5), 2700, 34, 'bold');
+    drawFittedValue(student.verenOkul || settings.verenOkul, tableX + 410, getY(5), 2700, tableFontSizeBase, 'bold');
 
     // ROW 7
-    ctx.font = `normal 34px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Adı', tableX + 24, getY(6));
     ctx.fillText(':', tableX + 380, getY(6));
-    drawFittedValue('Meslekî Eğitimde İş Sağlığı ve Güvenliği Eğitimi Katılım Belgesi', tableX + 410, getY(6), 2700, 34, 'normal');
+    drawFittedValue('Meslekî Eğitimde İş Sağlığı ve Güvenliği Eğitimi Katılım Belgesi', tableX + 410, getY(6), 2700, tableFontSizeBase, 'normal');
 
-    // Description Paragraph (Tek satırda baştan sona)
+    // Description Paragraph (Sığmazsa alt satıra geçecek şekilde)
     const dersSaati = student.dersSaati || settings.dersSaati || '16';
     const dersSaatiYazi = student.dersSaatiYazi || settings.dersSaatiYazi || 'on altı';
     const tarihSon = student.belgeTarihi || settings.belgeTarihi || '..../..../20....';
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.font = 'normal 41px "Times New Roman", Georgia, serif';
+    ctx.font = `normal ${descFontSize}px ${fontFace}`;
     ctx.fillStyle = '#000000';
 
-    const paraY = 1230; // Table ends at 1146
     const paraText = `Yukarıda bilgileri yer alan öğrenci,  ${dersSaati}  ( ${dersSaatiYazi} ) ders saati meslekî eğitimde iş sağlığı ve güvenliği eğitimini tamamladığı için bu belgeyi almaya hak kazanmıştır.  ${tarihSon}`;
-    ctx.fillText(paraText, width / 2, paraY);
+    const maxDescWidth = tableWidth - 40;
+    const descLines = wrapTextToLines(ctx, paraText, maxDescWidth);
+    const descLineHeight = descFontSize * 1.35;
+    const baseDescY = 1235;
+    const startDescY = descLines.length === 1 ? baseDescY : baseDescY - ((descLines.length - 1) * descLineHeight) / 2;
+
+    descLines.forEach((line, idx) => {
+      ctx.fillText(line, width / 2, startDescY + idx * descLineHeight);
+    });
 
     // Signatures (Kompakt üst boşluk)
     const sigY = 1420;
@@ -267,27 +321,27 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
 
     // Left Signer
     ctx.textAlign = 'center';
-    ctx.font = 'bold 36px "Times New Roman", monospace';
+    ctx.font = `bold 36px ${fontFace}`;
     ctx.fillText('....................................', leftX, sigY);
 
     const mudurYrd = student.mudurYardimcisi || settings.mudurYardimcisi || '';
     if (mudurYrd) {
-      ctx.font = 'bold 42px "Times New Roman", serif';
+      ctx.font = `bold ${sigNameSize}px ${fontFace}`;
       ctx.fillText(mudurYrd, leftX, sigY + 62);
     }
-    ctx.font = 'normal 44px "Times New Roman", serif';
+    ctx.font = `normal ${sigTitleSize}px ${fontFace}`;
     ctx.fillText('Müdür Yardımcısı', leftX, sigY + (mudurYrd ? 124 : 70));
 
     // Right Signer
-    ctx.font = 'bold 36px "Times New Roman", monospace';
+    ctx.font = `bold 36px ${fontFace}`;
     ctx.fillText('....................................', rightX, sigY);
 
     const mudur = student.mudur || settings.mudur || '';
     if (mudur) {
-      ctx.font = 'bold 42px "Times New Roman", serif';
+      ctx.font = `bold ${sigNameSize}px ${fontFace}`;
       ctx.fillText(mudur, rightX, sigY + 62);
     }
-    ctx.font = 'normal 44px "Times New Roman", serif';
+    ctx.font = `normal ${sigTitleSize}px ${fontFace}`;
     ctx.fillText('Müdür', rightX, sigY + (mudur ? 124 : 70));
 
   } else {
@@ -310,7 +364,7 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
     ctx.fillStyle = '#000000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 84px "Playfair Display", "Times New Roman", Georgia, serif';
+    ctx.font = `bold ${titleFontSize}px ${fontFace}`;
     ctx.fillText('KATILIM BELGESİ', width / 2, 530);
 
     const tableX = 160;
@@ -361,90 +415,98 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
     ctx.fillStyle = '#000000';
 
     // Row 1
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('T.C. Kimlik No', tableX + 24, getY(0));
     ctx.fillText(':', tableX + 370, getY(0));
-    drawFittedValue(student.tcNo, tableX + 395, getY(0), 510, 36, 'normal');
+    drawFittedValue(student.tcNo, tableX + 395, getY(0), 510, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Okulun Bulunduğu İlçe, İl', col2XStandard + 24, getY(0));
     ctx.fillText(':', col2XStandard + 460, getY(0));
-    drawFittedValue(student.ilceIl || settings.ilceIl, col2XStandard + 485, getY(0), 730, 36, 'normal');
+    drawFittedValue(student.ilceIl || settings.ilceIl, col2XStandard + 485, getY(0), 730, tableFontSizeBase, 'normal');
 
     // Row 2
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Adı Soyadı', tableX + 24, getY(1));
     ctx.fillText(':', tableX + 230, getY(1));
-    drawFittedValue(student.adiSoyadi, tableX + 255, getY(1), 510, 36, 'bold');
+    drawFittedValue(student.adiSoyadi, tableX + 255, getY(1), 510, tableFontSizeBase, 'bold');
 
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Okul Numarası', col2XRow2 + 24, getY(1));
     ctx.fillText(':', col2XRow2 + 270, getY(1));
-    drawFittedValue(student.okulNo, col2XRow2 + 295, getY(1), 370, 36, 'normal');
+    drawFittedValue(student.okulNo, col2XRow2 + 295, getY(1), 370, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Numarası', col3XRow2 + 24, getY(1));
     ctx.fillText(':', col3XRow2 + 280, getY(1));
-    drawFittedValue(student.belgeNo || settings.belgeNo, col3XRow2 + 305, getY(1), 380, 36, 'normal');
+    drawFittedValue(student.belgeNo || settings.belgeNo, col3XRow2 + 305, getY(1), 380, tableFontSizeBase, 'normal');
 
     // Row 3
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Baba Adı', tableX + 24, getY(2));
     ctx.fillText(':', tableX + 370, getY(2));
-    drawFittedValue(student.babaAdi, tableX + 395, getY(2), 510, 36, 'normal');
+    drawFittedValue(student.babaAdi, tableX + 395, getY(2), 510, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Tarihi', col2XStandard + 24, getY(2));
     ctx.fillText(':', col2XStandard + 240, getY(2));
-    drawFittedValue(student.belgeTarihi || settings.belgeTarihi, col2XStandard + 265, getY(2), 950, 36, 'normal');
+    drawFittedValue(student.belgeTarihi || settings.belgeTarihi, col2XStandard + 265, getY(2), 950, tableFontSizeBase, 'normal');
 
     // Row 4
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Ana Adı', tableX + 24, getY(3));
     ctx.fillText(':', tableX + 370, getY(3));
-    drawFittedValue(student.anaAdi, tableX + 395, getY(3), 510, 36, 'normal');
+    drawFittedValue(student.anaAdi, tableX + 395, getY(3), 510, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Güvenlik No', col2XStandard + 24, getY(3));
     ctx.fillText(':', col2XStandard + 330, getY(3));
-    drawFittedValue(student.belgeGuvenlikNo || settings.belgeGuvenlikNo, col2XStandard + 355, getY(3), 860, 36, 'normal');
+    drawFittedValue(student.belgeGuvenlikNo || settings.belgeGuvenlikNo, col2XStandard + 355, getY(3), 860, tableFontSizeBase, 'normal');
 
     // Row 5
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Doğum Yeri ve Tarihi', tableX + 24, getY(4));
     ctx.fillText(':', tableX + 370, getY(4));
-    drawFittedValue(student.dogumYeriTarihi, tableX + 395, getY(4), 510, 35, 'normal');
+    drawFittedValue(student.dogumYeriTarihi, tableX + 395, getY(4), 510, tableFontSizeBase, 'normal');
 
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Alanı/Dalı', col2XStandard + 24, getY(4));
     ctx.fillText(':', col2XStandard + 210, getY(4));
-    drawFittedValue(student.alaniDali, col2XStandard + 235, getY(4), 980, 36, 'normal');
+    drawFittedValue(student.alaniDali, col2XStandard + 235, getY(4), 980, tableFontSizeBase, 'normal');
 
     // Row 6
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belgeyi Veren Okul', tableX + 24, getY(5));
     ctx.fillText(':', tableX + 370, getY(5));
-    drawFittedValue(student.verenOkul || settings.verenOkul, tableX + 395, getY(5), 1740, 36, 'bold');
+    drawFittedValue(student.verenOkul || settings.verenOkul, tableX + 395, getY(5), 1740, tableFontSizeBase, 'bold');
 
     // Row 7
-    ctx.font = `normal 36px ${fontFace}`;
+    ctx.font = `normal ${tableFontSizeBase}px ${fontFace}`;
     ctx.fillText('Belge Adı', tableX + 24, getY(6));
     ctx.fillText(':', tableX + 370, getY(6));
-    drawFittedValue('Meslekî Eğitimde İş Sağlığı ve Güvenliği Eğitimi Katılım Belgesi', tableX + 395, getY(6), 1740, 36, 'normal');
+    drawFittedValue('Meslekî Eğitimde İş Sağlığı ve Güvenliği Eğitimi Katılım Belgesi', tableX + 395, getY(6), 1740, tableFontSizeBase, 'normal');
 
     // Description Paragraph (Tek satırda baştan sona)
     const dersSaati = student.dersSaati || settings.dersSaati || '16';
     const dersSaatiYazi = student.dersSaatiYazi || settings.dersSaatiYazi || 'on altı';
     const tarihSon = student.belgeTarihi || settings.belgeTarihi || '..../..../20....';
 
+    // Description Paragraph (Sığmazsa alt satıra geçecek şekilde)
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.font = 'normal 34px "Times New Roman", Georgia, serif';
+    ctx.font = `normal ${descFontSize}px ${fontFace}`;
     ctx.fillStyle = '#000000';
 
-    const paraY = 1390; // Table ends at 1306
     const paraText = `Yukarıda bilgileri yer alan öğrenci,  ${dersSaati}  ( ${dersSaatiYazi} ) ders saati meslekî eğitimde iş sağlığı ve güvenliği eğitimini tamamladığı için bu belgeyi almaya hak kazanmıştır.  ${tarihSon}`;
-    ctx.fillText(paraText, width / 2, paraY);
+    const maxDescWidth = tableWidth - 30;
+    const descLines = wrapTextToLines(ctx, paraText, maxDescWidth);
+    const descLineHeight = descFontSize * 1.35;
+    const baseDescY = 1400;
+    const startDescY = descLines.length === 1 ? baseDescY : baseDescY - ((descLines.length - 1) * descLineHeight) / 2;
+
+    descLines.forEach((line, idx) => {
+      ctx.fillText(line, width / 2, startDescY + idx * descLineHeight);
+    });
 
     // Signatures (Kompakt üst boşluk)
     const sigY = 1580;
@@ -452,26 +514,26 @@ export const renderCertificateToCanvas = async (student, settings = {}) => {
     const rightX = width - 480;
 
     ctx.textAlign = 'center';
-    ctx.font = 'bold 36px "Times New Roman", monospace';
+    ctx.font = `bold 36px ${fontFace}`;
     ctx.fillText('....................................', leftX, sigY);
 
     const mudurYrd = student.mudurYardimcisi || settings.mudurYardimcisi || '';
     if (mudurYrd) {
-      ctx.font = 'bold 44px "Times New Roman", serif';
+      ctx.font = `bold ${sigNameSize}px ${fontFace}`;
       ctx.fillText(mudurYrd, leftX, sigY + 68);
     }
-    ctx.font = 'normal 48px "Times New Roman", serif';
+    ctx.font = `normal ${sigTitleSize}px ${fontFace}`;
     ctx.fillText('Müdür Yardımcısı', leftX, sigY + (mudurYrd ? 136 : 80));
 
-    ctx.font = 'bold 36px "Times New Roman", monospace';
+    ctx.font = `bold 36px ${fontFace}`;
     ctx.fillText('....................................', rightX, sigY);
 
     const mudur = student.mudur || settings.mudur || '';
     if (mudur) {
-      ctx.font = 'bold 44px "Times New Roman", serif';
+      ctx.font = `bold ${sigNameSize}px ${fontFace}`;
       ctx.fillText(mudur, rightX, sigY + 68);
     }
-    ctx.font = 'normal 48px "Times New Roman", serif';
+    ctx.font = `normal ${sigTitleSize}px ${fontFace}`;
     ctx.fillText('Müdür', rightX, sigY + (mudur ? 136 : 80));
   }
 

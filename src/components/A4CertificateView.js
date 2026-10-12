@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import mebLogoSrc from '../assets/meb_logo.svg';
+import { getFontFamilyCss, loadGoogleFont } from '../utils/fontHelper';
 
 export default function A4CertificateView({ student, settings = {}, scale = 1 }) {
   const isLandscape = (settings.orientation || 'landscape') === 'landscape';
+
+  useEffect(() => {
+    if (settings.fontFamily) {
+      loadGoogleFont(settings.fontFamily);
+    }
+  }, [settings.fontFamily]);
 
   const {
     tcNo = '12345678901',
@@ -26,6 +33,14 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
 
   const baseW = isLandscape ? 1123 : 794;
   const baseH = isLandscape ? 794 : 1123;
+
+  const currentFontFamily = getFontFamilyCss(settings.fontFamily);
+  const sizeMultiplier = (settings.fontSizeScale || 100) / 100;
+
+  const computedTableFontSize = (settings.tableFontSize || 12) * sizeMultiplier;
+  const computedDescFontSize = (settings.descFontSize || (isLandscape ? 13 : 11.8)) * sizeMultiplier;
+  const computedTitleFontSize = (settings.titleFontSize || (isLandscape ? 21 : 23)) * sizeMultiplier;
+  const computedSigFontSize = 12 * sizeMultiplier;
 
   return (
     <div
@@ -58,7 +73,7 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
               width: '1123px',
               height: '794px',
               padding: '16px 44px',
-              fontFamily: '"Times New Roman", Times, Georgia, serif',
+              fontFamily: currentFontFamily,
               boxSizing: 'border-box'
             }}
           >
@@ -86,8 +101,8 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
               <h1
                 className="font-bold tracking-wide text-black text-center"
                 style={{
-                  fontSize: '21px',
-                  fontFamily: '"Playfair Display", "Times New Roman", serif',
+                  fontSize: `${computedTitleFontSize}px`,
+                  fontFamily: currentFontFamily,
                   letterSpacing: '1px',
                   marginBottom: '4px'
                 }}
@@ -102,7 +117,8 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
                 className="w-full border-collapse border border-black text-black"
                 style={{
                   borderWidth: '1.2px',
-                  fontSize: '12px',
+                  fontSize: `${computedTableFontSize}px`,
+                  fontFamily: currentFontFamily,
                 }}
               >
                 <tbody>
@@ -224,8 +240,15 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
               </table>
             </div>
 
-            {/* Description Text (Tek satırda baştan sona) */}
-            <div className="w-full text-center my-2 text-black font-normal whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: '13px', letterSpacing: '0.1px' }}>
+            {/* Description Text (Sığmazsa alt satıra geçecek şekilde) */}
+            <div
+              className="w-full text-center my-2 text-black font-normal break-words leading-relaxed"
+              style={{
+                fontSize: `${computedDescFontSize}px`,
+                fontFamily: currentFontFamily,
+                letterSpacing: '0.1px'
+              }}
+            >
               Yukarıda bilgileri yer alan öğrenci,{' '}
               <strong className="font-semibold underline decoration-dotted underline-offset-4 mx-1">
                 {dersSaati}
@@ -237,25 +260,25 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
             </div>
 
             {/* Signatures at Bottom (Kompakt üst boşluk) */}
-            <div className="flex justify-between items-end pt-2 pb-0 px-16 w-full">
+            <div className="flex justify-between items-end pt-2 pb-0 px-16 w-full" style={{ fontFamily: currentFontFamily }}>
               <div className="text-center w-52 flex flex-col items-center">
-                <div className="font-mono text-xs tracking-widest text-slate-700 mb-0.5">
+                <div className="font-mono tracking-widest text-slate-700 mb-0.5" style={{ fontSize: `${computedSigFontSize}px` }}>
                   ...........................
                 </div>
                 {mudurYardimcisi && (
-                  <div className="font-semibold text-xs text-black mb-0.5">{mudurYardimcisi}</div>
+                  <div className="font-semibold text-black mb-0.5" style={{ fontSize: `${computedSigFontSize}px` }}>{mudurYardimcisi}</div>
                 )}
-                <div className="text-xs font-normal text-black">Müdür Yardımcısı</div>
+                <div className="font-normal text-black" style={{ fontSize: `${computedSigFontSize}px` }}>Müdür Yardımcısı</div>
               </div>
 
               <div className="text-center w-52 flex flex-col items-center">
-                <div className="font-mono text-xs tracking-widest text-slate-700 mb-0.5">
+                <div className="font-mono tracking-widest text-slate-700 mb-0.5" style={{ fontSize: `${computedSigFontSize}px` }}>
                   ...........................
                 </div>
                 {mudur && (
-                  <div className="font-semibold text-xs text-black mb-0.5">{mudur}</div>
+                  <div className="font-semibold text-black mb-0.5" style={{ fontSize: `${computedSigFontSize}px` }}>{mudur}</div>
                 )}
-                <div className="text-xs font-normal text-black">Müdür</div>
+                <div className="font-normal text-black" style={{ fontSize: `${computedSigFontSize}px` }}>Müdür</div>
               </div>
             </div>
           </div>
@@ -270,7 +293,7 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
               width: '794px',
               height: '1123px',
               padding: '24px 44px',
-              fontFamily: '"Times New Roman", Times, Georgia, serif',
+              fontFamily: currentFontFamily,
               boxSizing: 'border-box'
             }}
           >
@@ -298,8 +321,8 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
               <h1
                 className="font-bold tracking-wide text-black text-center"
                 style={{
-                  fontSize: '23px',
-                  fontFamily: '"Playfair Display", "Times New Roman", serif',
+                  fontSize: `${computedTitleFontSize}px`,
+                  fontFamily: currentFontFamily,
                   letterSpacing: '1px',
                   marginBottom: '6px'
                 }}
@@ -314,7 +337,8 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
                 className="w-full border-collapse border border-black text-black"
                 style={{
                   borderWidth: '1.2px',
-                  fontSize: '12.5px',
+                  fontSize: `${computedTableFontSize}px`,
+                  fontFamily: currentFontFamily,
                 }}
               >
                 <tbody>
@@ -429,8 +453,15 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
               </table>
             </div>
 
-            {/* Paragraph (Tek satırda baştan sona) */}
-            <div className="w-full text-center my-3 text-black font-normal whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: '11.8px', letterSpacing: '0.1px' }}>
+            {/* Paragraph (Sığmazsa alt satıra geçecek şekilde) */}
+            <div
+              className="w-full text-center my-3 text-black font-normal break-words leading-relaxed"
+              style={{
+                fontSize: `${computedDescFontSize}px`,
+                fontFamily: currentFontFamily,
+                letterSpacing: '0.1px'
+              }}
+            >
               Yukarıda bilgileri yer alan öğrenci,{' '}
               <strong className="font-semibold underline decoration-dotted underline-offset-4 mx-1">
                 {dersSaati}
@@ -442,25 +473,25 @@ export default function A4CertificateView({ student, settings = {}, scale = 1 })
             </div>
 
             {/* Signatures (Kompakt üst boşluk) */}
-            <div className="flex justify-between items-end pt-2 pb-1 px-8 w-full">
+            <div className="flex justify-between items-end pt-2 pb-1 px-8 w-full" style={{ fontFamily: currentFontFamily }}>
               <div className="text-center w-52 flex flex-col items-center">
-                <div className="font-mono text-xs tracking-widest text-slate-700 mb-1">
+                <div className="font-mono tracking-widest text-slate-700 mb-1" style={{ fontSize: `${computedSigFontSize}px` }}>
                   ...........................
                 </div>
                 {mudurYardimcisi && (
-                  <div className="font-semibold text-xs text-black mb-0.5">{mudurYardimcisi}</div>
+                  <div className="font-semibold text-black mb-0.5" style={{ fontSize: `${computedSigFontSize}px` }}>{mudurYardimcisi}</div>
                 )}
-                <div className="text-xs font-normal text-black">Müdür Yardımcısı</div>
+                <div className="font-normal text-black" style={{ fontSize: `${computedSigFontSize}px` }}>Müdür Yardımcısı</div>
               </div>
 
               <div className="text-center w-52 flex flex-col items-center">
-                <div className="font-mono text-xs tracking-widest text-slate-700 mb-1">
+                <div className="font-mono tracking-widest text-slate-700 mb-1" style={{ fontSize: `${computedSigFontSize}px` }}>
                   ...........................
                 </div>
                 {mudur && (
-                  <div className="font-semibold text-xs text-black mb-0.5">{mudur}</div>
+                  <div className="font-semibold text-black mb-0.5" style={{ fontSize: `${computedSigFontSize}px` }}>{mudur}</div>
                 )}
-                <div className="text-xs font-normal text-black">Müdür</div>
+                <div className="font-normal text-black" style={{ fontSize: `${computedSigFontSize}px` }}>Müdür</div>
               </div>
             </div>
           </div>

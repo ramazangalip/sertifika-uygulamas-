@@ -31,7 +31,12 @@ const INITIAL_SETTINGS = {
   dersSaati: '16',
   dersSaatiYazi: 'on altı',
   mudurYardimcisi: 'Ali Kaya',
-  mudur: 'Hasan Demir'
+  mudur: 'Hasan Demir',
+  fontFamily: 'Times New Roman',
+  fontSizeScale: 100, // 80 to 130 (%)
+  tableFontSize: 12,
+  descFontSize: 13,
+  titleFontSize: 21
 };
 
 const INITIAL_STUDENTS = [
